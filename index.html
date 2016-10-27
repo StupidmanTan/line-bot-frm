@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Line-bot-frm by NeverSmileK57CLC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Line-bot-frm</h1>
+      <h2 class="project-tagline">Automatic chat bot using Line Bot</h2>
+      <a href="https://github.com/NeverSmileK57CLC/line-bot-frm" class="btn">View on GitHub</a>
+      <a href="https://github.com/NeverSmileK57CLC/line-bot-frm/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/NeverSmileK57CLC/line-bot-frm/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <p><img src="/uploads/images/a7ee57d6023a3b04d62466bce4105299b74ec606/76bfd3476101b62fc0fdb9090ed88b1e44f50c2c.png" alt="ABIBOT2en.png"> </p>
+
+<p>Khoảng 2 tháng trước tôi được giao cho nhiệm vụ tìm hiểu một công cụ dùng để chat tự động thông qua ứng dụng LINE, lúc đầu mới tìm hiểu thật sự khá khó khăn vì chưa có kiến thức gì cũng như luồng hoạt động của công cụ chat tự động. Vì vậy hôm nay tôi viết bài viết này để chia sẻ về cách tạo ra một ứng dụng Rails sử dụng LINE BOT API để có thể chat tự động.</p>
+
+<p>Trong bài viết này tôi sẽ giới thiệu tổng quan về LINE BOT API, luồng hoạt động và demo một ứng dụng Rails chat trực tiếp trên ứng dụng LINE.</p>
+
+<h1>
+<a id="line-bot-api-là-gì" class="anchor" href="#line-bot-api-l%C3%A0-g%C3%AC" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>LINE BOT API là gì?</h1>
+
+<p>LINE Bot API cho phép ta tương tác trực tiếp với người dùng cá nhân thông qua tài khoản Line chính thức, với BOT API ta có thể tự động gửi những phản hồi được tùy chỉnh đến người dùng nếu họ kết bạn với tài khoản BOT cũng như gửi tin nhắn đến. Và ta có thể gửi những tin nhắn tương tác từ server BOT API tới người dùng bất cứ lúc nào.</p>
+
+<h2>
+<a id="bot-api-làm-việc-như-thế-nào" class="anchor" href="#bot-api-l%C3%A0m-vi%E1%BB%87c-nh%C6%B0-th%E1%BA%BF-n%C3%A0o" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>BOT API làm việc như thế nào?</h2>
+
+<p>Sử dụng BOT API, ta có thể gửi thông tin giữa server và ứng dụng LINE của người dùng thông qua LINE platform. Các request được gửi sử dụng dựa trên nền JSON API.</p>
+
+<p><img src="/uploads/images/a7ee57d6023a3b04d62466bce4105299b74ec606/a0337128a0a44ba1dcf4308727efb744f6605141.png" alt="bot_img001.png"></p>
+
+<h3>
+<a id="kiến-trúc" class="anchor" href="#ki%E1%BA%BFn-tr%C3%BAc" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Kiến trúc</h3>
+
+<p>Server của chúng ta được liên kết với LINE platform. Khi ứng dụng LINE của người dùng gửi kết bạn hay gửi tin nhắn với tài khoản BOT hay gọi chung là có request gửi cho server, BOT API sẽ xử lý để biến các request đó thành JSON request và gửi cho URL của server mà ta đã đăng ký, khi đó, tùy từng cách xử lý thì ta sẽ gửi lại phản hồi cho người dùng. Và đương nhiên, phản hồi đó sẽ hiện trực tiếp trên box chat giữa người dùng và BOT trên ứng dụng LINE.</p>
+
+<h3>
+<a id="nhận-các-tin-nhắnthao-tác" class="anchor" href="#nh%E1%BA%ADn-c%C3%A1c-tin-nh%E1%BA%AFnthao-t%C3%A1c" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Nhận các tin nhắn/thao tác</h3>
+
+<p>Có hai loại thông tin được gửi từ LINE platform tới server khi người dùng tương tác với tài khoản BOT của bạn.</p>
+
+<ul>
+<li>Người dùng gửi tin nhắn (message)</li>
+<li>Người dùng thực hiện một thao tác như kết bạn (operation)</li>
+</ul>
+
+<p>Thông tin được gửi thông qua giao thức HTTP tới đường dẫn URL mà ta đã đăng ký. Một xâu JSON được tạo ra trong phần thân của request cho thao tác đó, nó phụ thuộc mà kiểu thao tác mà người dùng thực hiện.</p>
+
+<p>Đây là một ví dụ về JSON format khi người dùng gửi request cho server BOT API sẽ có dạng:</p>
+
+<div class="highlight highlight-source-json"><pre>{
+  <span class="pl-s"><span class="pl-pds">"</span>result<span class="pl-pds">"</span></span>:[
+    {
+      <span class="pl-s"><span class="pl-pds">"</span>from<span class="pl-pds">"</span></span>:<span class="pl-s"><span class="pl-pds">"</span>u206d25c2ea6bd87c17655609a1c37cb8<span class="pl-pds">"</span></span>,
+      <span class="pl-s"><span class="pl-pds">"</span>fromChannel<span class="pl-pds">"</span></span>:<span class="pl-c1">1341301815</span>,
+      <span class="pl-s"><span class="pl-pds">"</span>to<span class="pl-pds">"</span></span>:[<span class="pl-s"><span class="pl-pds">"</span>u0cc15697597f61dd8b01cea8b027050e<span class="pl-pds">"</span></span>],
+      <span class="pl-s"><span class="pl-pds">"</span>toChannel<span class="pl-pds">"</span></span>:<span class="pl-c1">1441301333</span>,
+      <span class="pl-s"><span class="pl-pds">"</span>eventType<span class="pl-pds">"</span></span>:<span class="pl-s"><span class="pl-pds">"</span>138311609000106303<span class="pl-pds">"</span></span>,
+      <span class="pl-s"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span>:<span class="pl-s"><span class="pl-pds">"</span>ABCDEF-12345678901<span class="pl-pds">"</span></span>,
+      <span class="pl-s"><span class="pl-pds">"</span>content<span class="pl-pds">"</span></span>:{
+        <span class="pl-ii">...</span>
+      }
+    }
+  ]
+}</pre></div>
+
+<pre lang="TextileToHtml"><code>|_.Tên thuộc tính|_.Giá trị (Ví dụ)|_.Mô tả|
+|from|"u206d25c2ea6bd87c17655609a1c37cb8"|MID của người gửi, giá trị này được LINE fix sẵn|
+|fromChannel|1341301815|Channel ID của người gửi, giá trị này được LINE fix sẵn|
+|to|["u0cc15697597f61dd8b01cea8b027050e"]|Một mảng các MID gửi đến|
+|toChannel|1441301333|Channel ID của BOT|
+|eventType|“138311609000106303”|Kiểu dữ liệu người dùng gửi: “138311609000106303”: Message, “138311609100106403”: Operation|
+</code></pre>
+
+<pre><code>POST /callback HTTP/1.1
+Host: YOUR_SERVER_HOST_NAME
+Content-type: application/json; charset=UTF-8
+X-LINE-ChannelSignature: /xZcekiWAiCrwq5dC+wBwBf6gQ33i1jRAo01KAVO3/U=
+
+{"result":[{...}, {...}]}
+</code></pre>
+
+<p>Tất cả các request bao gồm phần chữ kí ở trên header. Server BOT API sẽ sử dụng chữ kí đó để kiểm tra những request đó được gửi từ LINE platform. Nếu request không được gửi từ LINE platform, thì request đó sẽ không hợp lệ thì một sự kiện xử lý không hợp lệ được kích hoạt.</p>
+
+<h3>
+<a id="lời-gọi-api" class="anchor" href="#l%E1%BB%9Di-g%E1%BB%8Di-api" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Lời gọi API</h3>
+
+<p>LINE platform cung cấp các API cho phép gửi thông tin từ server BOT API tới người dùng:</p>
+
+<ul>
+<li>Gửi tin nhắn tới nhiều người dùng mà đã kết bạn với tài khoản BOT</li>
+<li>Lấy nickname của người dùng</li>
+</ul>
+
+<p>Server BOT có thể gọi các API để gửi tin nhắn tới người dùng bất cứ lúc nào. Khi lời gọi API được tạo ra, một <code>Channel access token</code> hay <code>Channel ID</code>, <code>Channel secret</code> và <code>MID</code> cho Channel của BOT và được đặt ở phần header của request để xác minh rằng lời gọi được gọi từ server BOT API. Ta có thể lấy các thông tin của Channel như ID, secret  và MID ở <a href="https://developers.line.me/channels">https://developers.line.me/channels/xxx</a> khi ta đăng ký một Channel, chi tiết tôi sẽ trình bày ở phần demo sau.</p>
+
+<h2>
+<a id="ta-có-thể-làm-gì-với-line-bot-api" class="anchor" href="#ta-c%C3%B3-th%E1%BB%83-l%C3%A0m-g%C3%AC-v%E1%BB%9Bi-line-bot-api" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Ta có thể làm gì với LINE BOT API?</h2>
+
+<ul>
+<li>Gửi và nhận tin nhắn từ người dùng mà đã kết bạn</li>
+<li>Gửi các tin nhắn đa phương tiện như hình ảnh, link...</li>
+<li>Gửi các sticker</li>
+<li>Cho người dùng duyệt các link trên chính ứng dụng LINE</li>
+</ul>
+
+<h1>
+<a id="demo-ứng-dụng-rails-chat-tự-động" class="anchor" href="#demo-%E1%BB%A9ng-d%E1%BB%A5ng-rails-chat-t%E1%BB%B1-%C4%91%E1%BB%99ng" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Demo ứng dụng Rails chat tự động</h1>
+
+<p>Trong phần này tôi sẽ hướng dẫn cách tạo một Channel LINE cũng như ứng dụng Rails để xử lý request cho phép tự động gửi lại tin nhắn cho người dùng, để đơn giản tôi sẽ gửi lại những gì người dùng gửi cho BOT.</p>
+
+<h2>
+<a id="tạo-tài-khoản-line" class="anchor" href="#t%E1%BA%A1o-t%C3%A0i-kho%E1%BA%A3n-line" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tạo tài khoản LINE</h2>
+
+<p>Bước đầu tiên ta phải tải ứng dụng LINE về điện thoại, đăng ký một tài khoản và sử dụng tài khoản đó để đăng nhập ở <a href="https://access.line.me/dialog/oauth/weblogin?client_id=1459630796&amp;redirect_uri=https://business.line.me/auth?redirectUri%3Dhttps://business.line.me/sso/auth?response_type%253Dcode%2526scope%253Dopenid%2526redirect_uri%253Dhttps%25253A%25252F%25252Fdevelopers.line.me%25252Fsso%25252Ftoken%25253FredirectUrl%25253Dhttps%25253A%25252F%25252Fdevelopers.line.me%25252Fchannels%25252F%2526client_id%253D2%2526state%253DLYs7KqZ%25252Bxb4dokc4m2sZWyiylHySmHWZ&amp;response_type=code&amp;state=vfxrkZ">LINE đăng nhập</a> (ở phần này LINE sẽ gửi code về điện thoại để xác nhận).</p>
+
+<p>Tiếp theo ta sẽ tạo ra một Channel bằng cách vào trang <a href="https://business.line.me/accounts/migration/email/input">Line Business Center</a>, khi tạo xong LINE sẽ cung cấp cho ta Channel ID, Channel Secret và MID tương tự như:</p>
+
+<p><img src="/uploads/images/a7ee57d6023a3b04d62466bce4105299b74ec606/92d89aafc7bb3f517375401128eb9c79e1121b02.png" alt="Screenshot from 2016-08-28 00:12:47.png"> </p>
+
+<p>Những thông tin này sẽ cần thiết khi ta tạo server dùng để xác minh.</p>
+
+<h2>
+<a id="tạo-ứng-dụng-rails" class="anchor" href="#t%E1%BA%A1o-%E1%BB%A9ng-d%E1%BB%A5ng-rails" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tạo ứng dụng Rails</h2>
+
+<p>Để đơn giản ta tạo một ứng dụng Rails gửi lại phản hồi cho người dùng những gì mà người dùng nhập, và không cần phải lưu vào cơ sở dữ liệu. Ứng dụng sẽ được deploy lên Heroku và sẽ được setting ở trong LINE Channel.</p>
+
+<p>Tùy vào từng mục đích khác nhau thì ta có thể chọn cách xử lý.</p>
+
+<p>Tạo một ứng dụng Rails:</p>
+
+<div class="highlight highlight-source-ruby"><pre>rails <span class="pl-k">new</span> line<span class="pl-k">-</span>bot<span class="pl-k">-</span>api</pre></div>
+
+<p>Đầu tiên, ta cài đặt đường dẫn CallbackURL để cài đặt những thông tin cơ bản
+<code>config/routes.rb</code></p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-c1">Rails</span>.application.routes.draw <span class="pl-k">do</span>
+  post <span class="pl-s"><span class="pl-pds">"</span>/callback<span class="pl-pds">"</span></span>, <span class="pl-c1">to:</span> <span class="pl-s"><span class="pl-pds">"</span>webhook#callback<span class="pl-pds">"</span></span>
+<span class="pl-k">end</span></pre></div>
+
+<p>Tiếp theo ta tạo một thư viện để gọi LINE BOT API
+<code>lib/line_bot.rb</code> và đừng quên thêm <code>config.autoload_paths += %W(#{config.root}/lib)</code> trong <code>config/application.rb</code></p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-c"># lib/line_bot.rb</span>
+<span class="pl-k">require</span> <span class="pl-s"><span class="pl-pds">"</span>faraday<span class="pl-pds">"</span></span>
+<span class="pl-k">require</span> <span class="pl-s"><span class="pl-pds">"</span>faraday_middleware<span class="pl-pds">"</span></span>
+<span class="pl-k">require</span> <span class="pl-s"><span class="pl-pds">"</span>json<span class="pl-pds">"</span></span>
+<span class="pl-k">require</span> <span class="pl-s"><span class="pl-pds">"</span>pp<span class="pl-pds">"</span></span>
+
+<span class="pl-k">class</span> <span class="pl-en">LineBot</span>
+  <span class="pl-k">module</span> <span class="pl-en">ContentType</span>
+    <span class="pl-c1">TEXT</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>
+    <span class="pl-c1">IMAGE</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>
+    <span class="pl-c1">VIDEO</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>
+    <span class="pl-c1">AUDIO</span> <span class="pl-k">=</span> <span class="pl-c1">4</span>
+    <span class="pl-c1">LOCATION</span> <span class="pl-k">=</span> <span class="pl-c1">7</span>
+    <span class="pl-c1">STICKER</span> <span class="pl-k">=</span> <span class="pl-c1">8</span>
+    <span class="pl-c1">CONTACT</span> <span class="pl-k">=</span> <span class="pl-c1">10</span>
+  <span class="pl-k">end</span>
+  <span class="pl-k">module</span> <span class="pl-en">ToType</span>
+    <span class="pl-c1">USER</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>
+  <span class="pl-k">end</span>
+
+  <span class="pl-c1">END_POINT</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>https://trialbot-api.line.me<span class="pl-pds">"</span></span> <span class="pl-c"># Fixed value</span>
+  <span class="pl-c1">TO_CHANNEL</span> <span class="pl-k">=</span> <span class="pl-c1">1383378250</span> <span class="pl-c"># Fixed value</span>
+  <span class="pl-c1">EVENT_TYPE</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>138311608800106203<span class="pl-pds">"</span></span> <span class="pl-c"># Fixed value</span>
+
+  <span class="pl-k">def</span> <span class="pl-en">initialize</span>
+    <span class="pl-smi">@channel_id</span> <span class="pl-k">=</span> <span class="pl-c1">ENV</span>[<span class="pl-s"><span class="pl-pds">"</span>LINE_CHANNEL_ID<span class="pl-pds">"</span></span>]
+    <span class="pl-smi">@channel_secret</span> <span class="pl-k">=</span> <span class="pl-c1">ENV</span>[<span class="pl-s"><span class="pl-pds">"</span>LINE_CHANNEL_SECRET<span class="pl-pds">"</span></span>]
+    <span class="pl-smi">@channel_mid</span> <span class="pl-k">=</span> <span class="pl-c1">ENV</span>[<span class="pl-s"><span class="pl-pds">"</span>LINE_CHANNEL_MID<span class="pl-pds">"</span></span>]
+    <span class="pl-smi">@proxy</span> <span class="pl-k">=</span> <span class="pl-c1">ENV</span>[<span class="pl-s"><span class="pl-pds">"</span>LINE_OUTBOUND_PROXY<span class="pl-pds">"</span></span>]
+  <span class="pl-k">end</span>
+
+  <span class="pl-k">def</span> <span class="pl-en">post</span> <span class="pl-smi">path</span>, <span class="pl-smi">data</span>
+    client <span class="pl-k">=</span> <span class="pl-c1">Faraday</span>.<span class="pl-k">new</span> <span class="pl-c1">url:</span> <span class="pl-c1">END_POINT</span> <span class="pl-k">do </span>|<span class="pl-smi">conn</span>|
+      conn.request <span class="pl-c1">:json</span>
+      conn.response <span class="pl-c1">:json</span>, <span class="pl-c1">content_type:</span> <span class="pl-sr"><span class="pl-pds">/</span><span class="pl-cce">\b</span>json$<span class="pl-pds">/</span></span>
+      conn.adapter <span class="pl-c1">Faraday</span>.default_adapter
+      conn.proxy <span class="pl-smi">@proxy</span>
+    <span class="pl-k">end</span>
+    res <span class="pl-k">=</span> client.post <span class="pl-k">do </span>|<span class="pl-smi">request</span>|
+      request.url path
+      request.headers <span class="pl-k">=</span> {
+        <span class="pl-s"><span class="pl-pds">"</span>Content-Type<span class="pl-pds">"</span></span> =&gt; <span class="pl-s"><span class="pl-pds">"</span>application/json; charset=UTF-8<span class="pl-pds">"</span></span>,
+        <span class="pl-s"><span class="pl-pds">"</span>X-Line-ChannelID<span class="pl-pds">"</span></span> =&gt; <span class="pl-smi">@channel_id</span>,
+        <span class="pl-s"><span class="pl-pds">"</span>X-Line-ChannelSecret<span class="pl-pds">"</span></span> =&gt; <span class="pl-smi">@channel_secret</span>,
+        <span class="pl-s"><span class="pl-pds">"</span>X-Line-Trusted-User-With-ACL<span class="pl-pds">"</span></span> =&gt; <span class="pl-smi">@channel_mid</span>,
+      }
+      request.body <span class="pl-k">=</span> data
+    <span class="pl-k">end</span>
+    res
+  <span class="pl-k">end</span>
+
+  <span class="pl-k">def</span> <span class="pl-en">send</span> <span class="pl-smi">line_ids</span>, <span class="pl-smi">contentType</span>, <span class="pl-smi">message</span>, <span class="pl-smi">options</span> <span class="pl-k">=</span> <span class="pl-c1">nil</span>
+    message_type_name <span class="pl-k">=</span> <span class="pl-k">case</span> contentType
+      <span class="pl-k">when</span> <span class="pl-c1">ContentType</span>::<span class="pl-c1">TEXT</span>
+        <span class="pl-s"><span class="pl-pds">"</span>text<span class="pl-pds">"</span></span>
+      <span class="pl-k">when</span> <span class="pl-c1">ContentType</span>::<span class="pl-c1">IMAGE</span>, <span class="pl-c1">ContentType</span>::<span class="pl-c1">VIDEO</span>
+        <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>
+      <span class="pl-k">when</span> <span class="pl-c1">ContentType</span>::<span class="pl-c1">AUDIO</span>, <span class="pl-c1">ContentType</span>::<span class="pl-c1">STICKER</span>
+        <span class="pl-s"><span class="pl-pds">"</span>contentMetadata<span class="pl-pds">"</span></span>
+      <span class="pl-k">else</span>
+        <span class="pl-s"><span class="pl-pds">"</span>text<span class="pl-pds">"</span></span>
+      <span class="pl-k">end</span>
+
+    content <span class="pl-k">=</span> {
+      <span class="pl-c1">contentType:</span> contentType,
+      <span class="pl-c1">toType:</span> <span class="pl-c1">ToType</span>::<span class="pl-c1">USER</span>,
+      <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pse">#{</span><span class="pl-s1">message_type_name</span><span class="pl-pse"><span class="pl-s1">}</span></span><span class="pl-pds">"</span></span>: message
+    }
+    <span class="pl-k">if</span> options
+      options.each <span class="pl-k">do </span>|<span class="pl-smi">key</span>, <span class="pl-smi">value</span>|
+        content[key] <span class="pl-k">=</span> value
+      <span class="pl-k">end</span>
+    <span class="pl-k">end</span>
+    post <span class="pl-s"><span class="pl-pds">"</span>/v1/events<span class="pl-pds">"</span></span>, {
+      <span class="pl-c1">to:</span> line_ids,
+      <span class="pl-c1">content:</span> content,
+      <span class="pl-c1">toChannel:</span> <span class="pl-c1">TO_CHANNEL</span>,
+      <span class="pl-c1">eventType:</span> <span class="pl-c1">EVENT_TYPE</span>
+    }
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>Ở hàm <code>send</code> ta có thể tùy chỉnh việc server có thể gửi những loại dữ liệu nào cho người dùng, chi tiết có thể xem tại <a href="https://developers.line.me/bot-api/api-reference">LINE BOT api reference</a>.</p>
+
+<p>Tiếp theo, ta tạo controller <code>webhook_controller.rb</code> xử lý các request đến server. Ta phải disable CSRF (Cross-site request forgery), hàm <code>is_validate_signature</code> được hướng dẫn ở trang chủ <a href="https://developers.line.me/bot-api/getting-started-with-bot-api-trial#signature_validation">Line document</a>, ta chỉ việc copy thôi.
+<code>app/controller/webhook_controller.rb</code></p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">require</span> <span class="pl-s"><span class="pl-pds">"</span>line_bot<span class="pl-pds">"</span></span>
+<span class="pl-k">class</span> <span class="pl-en">WebhookController<span class="pl-e"> &lt; ApplicationController</span></span>
+  protect_from_forgery <span class="pl-c1">with:</span> <span class="pl-c1">:null_session</span>
+
+  <span class="pl-k">def</span> <span class="pl-en">callback</span>
+    <span class="pl-k">unless</span> is_validate_signature
+      render <span class="pl-c1">nothing:</span> <span class="pl-c1">true</span>, <span class="pl-c1">status:</span> <span class="pl-c1">470</span>
+    <span class="pl-k">end</span>
+    result <span class="pl-k">=</span> params[<span class="pl-c1">:result</span>][<span class="pl-c1">0</span>]
+    content <span class="pl-k">=</span> result[<span class="pl-s"><span class="pl-pds">"</span>content<span class="pl-pds">"</span></span>]
+
+    <span class="pl-c1">LineBot</span>.<span class="pl-k">new</span>.send [content[<span class="pl-s"><span class="pl-pds">"</span>from<span class="pl-pds">"</span></span>]], <span class="pl-c1">1</span>, content[<span class="pl-s"><span class="pl-pds">"</span>text<span class="pl-pds">"</span></span>] <span class="pl-c"># 1: Text</span>
+    render <span class="pl-c1">nothing:</span> <span class="pl-c1">true</span>, <span class="pl-c1">status:</span> <span class="pl-c1">:ok</span>
+  <span class="pl-k">end</span>
+
+  <span class="pl-k">private</span>
+  <span class="pl-k">def</span> <span class="pl-en">is_validate_signature</span>
+    signature <span class="pl-k">=</span> request.headers[<span class="pl-s"><span class="pl-pds">"</span>X-LINE-ChannelSignature<span class="pl-pds">"</span></span>]
+    channel_secret <span class="pl-k">=</span> <span class="pl-c1">ENV</span>[<span class="pl-s"><span class="pl-pds">"</span>LINE_CHANNEL_SECRET<span class="pl-pds">"</span></span>]
+    http_request_body <span class="pl-k">=</span> request.raw_post
+    hash <span class="pl-k">=</span> <span class="pl-c1">OpenSSL</span>::<span class="pl-c1">HMAC</span>::digest <span class="pl-c1">OpenSSL</span>::<span class="pl-c1">Digest</span>::<span class="pl-c1">SHA256</span>.<span class="pl-k">new</span>, channel_secret, http_request_body
+    signature_answer <span class="pl-k">=</span> <span class="pl-c1">Base64</span>.strict_encode64 hash
+    signature <span class="pl-k">==</span> signature_answer
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>ở câu lệnh</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-c1">LineBot</span>.<span class="pl-k">new</span>.send [content[<span class="pl-s"><span class="pl-pds">"</span>from<span class="pl-pds">"</span></span>]], <span class="pl-c1">1</span>, content[<span class="pl-s"><span class="pl-pds">"</span>text<span class="pl-pds">"</span></span>]</pre></div>
+
+<p>Đơn giản là lấy thông tin người nhận và gửi lại đúng đoạn tin nhắn họ gửi cho BOT.</p>
+
+<p>Vậy là ta đã viết xong phần server xử lý tin nhắn, tiếp theo ta cần phải deploy lên production (sử dụng Heroku) và config đường dẫn callback cho Channel. Callback URL mặc định là <code>tenduongdan:443/callback</code></p>
+
+<p><img src="/uploads/images/a7ee57d6023a3b04d62466bce4105299b74ec606/fe17fc3e7cb5d0901bb35f16a40c63e6459961ce.png" alt="Screenshot from 2016-08-28 09:13:57.png"> </p>
+
+<p>Mọi người có thể tham khảo project mẫu <a href="https://github.com/NeverSmileK57CLC/line-bot-frm">https://github.com/NeverSmileK57CLC/line-bot-frm</a>
+và LINE BOT chat mà tôi đã demo.</p>
+
+<p><img src="/uploads/images/a7ee57d6023a3b04d62466bce4105299b74ec606/772ecc17e9311ff008e81392c4e5e10367c044b0.png" alt="bot_report.png"> </p>
+
+<h1>
+<a id="tổng-kết" class="anchor" href="#t%E1%BB%95ng-k%E1%BA%BFt" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tổng kết</h1>
+
+<p>LINE BOT là một bộ API khá hay khi mà ta có thể tạo một server BOT để xử lý những tin nhắn mà người dùng gửi. Trong bài viết này do chưa có kinh nghiệm tôi chỉ giới thiệu sơ qua về LINE BOT API và demo một ví dụ đơn giản. Chủ đề này có ứng dụng khá cao khi có thể áp dụng Data Mining, Machine Learning vào để tạo ra những con BOT thông minh như Cortana, Siri hay đơn giản chỉ là một BOT hỏi đáp trên chính ứng dụng chat LINE.</p>
+
+<p>Tham khảo:</p>
+
+<ul>
+<li><a href="https://developers.line.me/bot-api/overview">https://developers.line.me/bot-api/overview</a></li>
+<li><a href="http://qiita.com/Arahabica/items/98e3d0d5b65269386dc4">http://qiita.com/Arahabica/items/98e3d0d5b65269386dc4</a></li>
+</ul>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/NeverSmileK57CLC/line-bot-frm">Line-bot-frm</a> is maintained by <a href="https://github.com/NeverSmileK57CLC">NeverSmileK57CLC</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
